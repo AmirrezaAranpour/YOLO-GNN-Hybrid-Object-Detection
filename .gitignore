@@ -1,0 +1,13 @@
+# Raw dataset (kept locally, not pushed)
+data/ACRE_raw/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+env/

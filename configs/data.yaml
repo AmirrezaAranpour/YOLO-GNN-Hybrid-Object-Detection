@@ -1,0 +1,81 @@
+# ============================================================================
+# ACRE Crop-Weed dataset configuration  (Task 0: audit / conversion / split)
+# ----------------------------------------------------------------------------
+# Everything the data pipeline can vary lives here. Nothing about the dataset
+# layout, class mapping, OOV policy, split, or thresholds is hardcoded in code.
+# ============================================================================
+
+paths:
+  raw_root: data/ACRE_raw/data        # contains Maize/ and Bean/ with paired .jpg/.xml
+  out_root: data/acre_yolo            # converted YOLO dataset is written here
+  reports:  reports/task0             # figures + markdown report
+
+# ----------------------------------------------------------------------------
+# FINE-GRAINED 6-class label set (PRIMARY).
+# Keys are the raw French strings found in the XML <name> tag (verified by
+# scanning all 1000 files). Crops first (0,1) then weeds (2-5).
+# ----------------------------------------------------------------------------
+fine_classes:
+  mais:       {id: 0, en: maize,        latin: "Zea mays",              group: crop}
+  haricot:    {id: 1, en: bean,         latin: "Phaseolus vulgaris",    group: crop}
+  ray-grass:  {id: 2, en: ryegrass,     latin: "Lolium perenne",        group: weed}
+  moutarde:   {id: 3, en: mustard,      latin: "Sinapis arvensis",      group: weed}
+  matricaire: {id: 4, en: matricaria,   latin: "Matricaria chamomilla", group: weed}
+  chenopode:  {id: 5, en: lambsquarter, latin: "Chenopodium album",     group: weed}
+
+# Display names indexed by class_id (used for YOLO data.yaml `names:`)
+fine_names: [maize, bean, ryegrass, mustard, matricaria, lambsquarter]
+
+# ----------------------------------------------------------------------------
+# COARSE 2-class label set (SECONDARY / auxiliary analysis).
+# ----------------------------------------------------------------------------
+coarse_names: [crop, weed]
+coarse_map: {crop: 0, weed: 1}
+# "unknow" (sic, the raw tag spelling) folds into weed, matching the dataset's
+# official acre_xml_to_coco_obj_det.py script.
+class_tag_to_coarse: {crop: crop, weed: weed, unknow: weed}
+
+# ----------------------------------------------------------------------------
+# Out-of-vocabulary handling. These species exist but are NOT among the 6
+# official ACRE species. FINE: dropped (oov_policy) and counted. COARSE: always
+# kept via the <class> tag so no real plant becomes silent background.
+#   oov_policy: drop  -> excluded from the 6-class labels (flagged + logged)
+# `oov_known_group` lets COARSE use species knowledge for named OOV species
+# rather than trusting the (sometimes noisy) <class> tag.
+# ----------------------------------------------------------------------------
+oov_policy: drop
+oov_known_group:
+  feverole: crop      # faba/field bean (Vicia faba)
+  pois:     crop      # pea
+  Pourpier: weed      # purslane (Portulaca oleracea)
+  digitaire: weed     # crabgrass (Digitaria)
+  setaire:  weed      # foxtail (Setaria)
+  inconnu:  null      # unknown species -> fall back to <class> tag
+# Unnamed (<name> missing) instances also fall back to the <class> tag.
+
+# ----------------------------------------------------------------------------
+# Box extraction / sanity filtering (polygon -> bbox).
+# ----------------------------------------------------------------------------
+box:
+  clip_to_image: true       # clamp boxes to [0, W-1] x [0, H-1]
+  min_side_px: 2            # drop degenerate boxes thinner than this (logged)
+  min_area_px: 4            # drop boxes smaller than this area (logged)
+
+# ----------------------------------------------------------------------------
+# Stratified split (image-level, 60/20/20), multi-label iterative stratification.
+# ----------------------------------------------------------------------------
+split:
+  ratios: {train: 0.60, val: 0.20, test: 0.20}
+  seed: 42
+  method: iterative_multilabel
+  keep_empty_images: true   # the 2 background-only images are valid negatives
+
+# ----------------------------------------------------------------------------
+# Small-object definition, DERIVED FROM THE DATA (see reports/task0).
+# Rule: small = bbox area < (33rd pct of sqrt-area)^2.
+# At this resolution the COCO 32px convention would flag only 14.3% of boxes;
+# our cutoff flags the lower tercile (33%), which matches "small for THIS data".
+# ----------------------------------------------------------------------------
+small_object:
+  area_px_max: 1920         # bbox area in px^2 (= ~44px x 44px object)
+  note: "data-driven 33rd-pct of sqrt-area (~44px). COCO 32px would call only 14.3% small."

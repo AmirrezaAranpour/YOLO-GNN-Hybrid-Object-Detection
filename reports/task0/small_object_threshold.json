@@ -1,0 +1,6 @@
+{
+  "area_px_max": 1920.0,
+  "size_px_sqrt": 43.8,
+  "rule": "small = area < (33rd pct of sqrt-area)^2",
+  "coco_small_fraction": 0.14280912789669203
+}

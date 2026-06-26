@@ -1,0 +1,46 @@
+{
+  "n_images": 1000,
+  "n_boxes_raw": 56530,
+  "n_boxes_fine": 55245,
+  "n_boxes_coarse": 56530,
+  "fine_count_by_id": {
+    "maize": 1821,
+    "bean": 4119,
+    "ryegrass": 1002,
+    "mustard": 710,
+    "matricaria": 955,
+    "lambsquarter": 46638
+  },
+  "coarse_count_by_id": {
+    "crop": 5994,
+    "weed": 50536
+  },
+  "oov_dropped_from_fine": {
+    "inconnu": 861,
+    "null": 379,
+    "feverole": 19,
+    "Pourpier": 11,
+    "digitaire": 8,
+    "pois": 4,
+    "setaire": 3
+  },
+  "oov_total": 1285,
+  "boxes_dropped": {},
+  "empty_images": [
+    "rgb-2022-10-06-17-19-51",
+    "rgb-2022-10-10-15-59-00"
+  ],
+  "n_empty_images": 2,
+  "species_class_tag_conflicts_sample": [
+    [
+      "rgb-2022-10-10-15-59-41",
+      "matricaire",
+      "crop"
+    ]
+  ],
+  "box_count_per_image": {
+    "min": 0,
+    "max": 295,
+    "mean": 56.53
+  }
+}

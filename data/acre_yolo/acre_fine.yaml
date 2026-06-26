@@ -1,0 +1,7 @@
+# Ultralytics dataset config (auto-generated) - fine labels
+path: /home/amirreza/Desktop/GNN_NEW/data/acre_yolo/fine
+train: images/train
+val: images/val
+test: images/test
+nc: 6
+names: ['maize', 'bean', 'ryegrass', 'mustard', 'matricaria', 'lambsquarter']

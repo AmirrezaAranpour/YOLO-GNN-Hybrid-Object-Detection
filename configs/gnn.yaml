@@ -1,0 +1,72 @@
+# ============================================================================
+# Stage 2 — GNN refinement head config. Every row of the experiment matrix is
+# one (block_a, block_b) combination here; nothing else changes between runs.
+# ============================================================================
+
+# Frozen Stage-1 detector to refine (filled in once B0 is trained).
+yolo_ckpt: runs/stage1_yolo/b0_yolo11s_seed0/weights/best.pt
+imgsz: 1024                    # MUST match Stage 1 so candidate features align
+data: data/acre_yolo/acre_fine.yaml
+
+# ---------------------------------------------------------------------------
+# Candidate extraction (pre-NMS). Keep weak/borderline boxes so the GNN can
+# rescue them — that's the whole point.
+# ---------------------------------------------------------------------------
+candidates:
+  topk: 300                    # top-N pre-NMS candidates per image by confidence.
+                               # Brief said ~150, but this data is dense (max 295
+                               # obj/img); at topk=150 GT-recall@IoU0.5 on dense
+                               # images is only ~0.14, vs ~0.27 at 300. 300 covers
+                               # typical images (mean 56) well + helps dense ones.
+  conf_thresh: 0.05            # low, on purpose, to keep borderline detections
+  roi_feat: true               # ROI-pool an appearance vector from the neck map
+
+# ---------------------------------------------------------------------------
+# Graph construction. kNN over a blend of spatial proximity and feature cosine
+# similarity; all tunable for sweeps.
+# ---------------------------------------------------------------------------
+graph:
+  k: 12                        # neighbors per node (sweep 8..16)
+  spatial_metric: center       # center distance | iou
+  use_feature_sim: true        # add cosine-similarity edges
+  sim_thresh: 0.5              # min cosine sim to add a feature edge
+  edge_weight: blend           # spatial+similarity blended edge weight
+
+# ---------------------------------------------------------------------------
+# Model: Block A (structural, swappable) -> Block B (always GAT).
+#   block_a: gcn | gin | sage | null
+#   block_b: gat | null
+# The 9 matrix rows are just these two knobs.
+# ---------------------------------------------------------------------------
+model:
+  block_a: gcn
+  block_b: gat
+  hidden_dim: 256
+  a_layers: 2
+  b_layers: 2
+  gat_heads: 4
+  dropout: 0.2
+  num_classes: 6               # +1 background/reject is added internally
+  predict_box_residual: true
+
+# ---------------------------------------------------------------------------
+# Stage-2 training (only the GNN head trains; YOLO frozen).
+# ---------------------------------------------------------------------------
+train:
+  epochs: 40                   # val mAP peaks by ~ep15-20; best-val checkpoint is
+                               # saved, so 40 is plenty and keeps the 24-run matrix fast
+  lr: 0.001
+  weight_decay: 0.0005
+  batch_images: 8              # images per batch (each is a graph)
+  pos_iou: 0.5                 # IoU>=this -> matched positive, else background
+  cls_loss: focal             # focal | weighted_ce (imbalance: lambsquarter 82%)
+  focal_gamma: 2.0
+  use_class_weights: true
+  box_loss_weight: 1.0
+  conf_loss_weight: 1.0
+  device: 0
+  seeds: [0, 1, 2]
+
+output:
+  project: runs/stage2_gnn
+  exp_log: logs/experiments.jsonl

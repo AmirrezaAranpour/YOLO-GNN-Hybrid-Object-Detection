@@ -1,0 +1,83 @@
+{
+  "images_per_split": {
+    "train": 597,
+    "test": 201,
+    "val": 202
+  },
+  "fine_instances_per_split": {
+    "maize": {
+      "train": 1091,
+      "test": 370,
+      "val": 360
+    },
+    "bean": {
+      "train": 2481,
+      "test": 779,
+      "val": 859
+    },
+    "ryegrass": {
+      "train": 604,
+      "test": 180,
+      "val": 218
+    },
+    "mustard": {
+      "train": 383,
+      "test": 160,
+      "val": 167
+    },
+    "matricaria": {
+      "train": 531,
+      "test": 210,
+      "val": 214
+    },
+    "lambsquarter": {
+      "train": 28645,
+      "test": 8728,
+      "val": 9265
+    }
+  },
+  "fine_images_with_class_per_split": {
+    "maize": {
+      "train": 305,
+      "test": 102,
+      "val": 102
+    },
+    "bean": {
+      "train": 302,
+      "test": 101,
+      "val": 100
+    },
+    "ryegrass": {
+      "train": 223,
+      "test": 74,
+      "val": 74
+    },
+    "mustard": {
+      "train": 158,
+      "test": 53,
+      "val": 53
+    },
+    "matricaria": {
+      "train": 166,
+      "test": 55,
+      "val": 55
+    },
+    "lambsquarter": {
+      "train": 595,
+      "test": 198,
+      "val": 199
+    }
+  },
+  "coarse_instances_per_split": {
+    "crop": {
+      "train": 3604,
+      "test": 1164,
+      "val": 1226
+    },
+    "weed": {
+      "train": 30811,
+      "test": 9558,
+      "val": 10167
+    }
+  }
+}

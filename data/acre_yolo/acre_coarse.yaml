@@ -1,0 +1,7 @@
+# Ultralytics dataset config (auto-generated) - coarse labels
+path: /home/amirreza/Desktop/GNN_NEW/data/acre_yolo/coarse
+train: images/train
+val: images/val
+test: images/test
+nc: 2
+names: ['crop', 'weed']

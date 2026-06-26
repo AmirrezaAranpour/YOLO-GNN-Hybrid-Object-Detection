@@ -1,0 +1,46 @@
+# ============================================================================
+# Stage 1 — YOLO11 baseline (B0) config. Thin wrapper around Ultralytics.
+# Hardware target: single RTX 3070 Laptop (8 GB VRAM) -> modest model + imgsz.
+# NOTE: imgsz fixed here is ALSO the resolution Stage 2 must use to extract
+# pre-NMS candidates from the frozen YOLO, so don't change it casually later.
+# ============================================================================
+
+model: yolo11s.pt              # COCO-pretrained; s = good acc/size tradeoff on 8GB
+data: data/acre_yolo/acre_fine.yaml   # PRIMARY 6-class set (set acre_coarse.yaml for 2-class)
+
+train:
+  epochs: 100
+  patience: 25                 # early stop if val mAP plateaus
+  imgsz: 1024                  # near-field 2046x1080 w/ tiny seedlings -> bigger than 640
+  batch: 4                     # 8GB headroom: dense mosaic batches (up to 295 obj/img +
+                               # mosaic x4) peak ~7.3G at batch 8 and OOM the assigner;
+                               # batch 4 stays safe for unattended multi-seed runs
+  device: 0
+  workers: 8
+  optimizer: auto
+  cos_lr: true
+  amp: true                    # mixed precision (needed to fit 8GB)
+  seed: 0                      # B0 will be run for seeds 0,1,2 (matrix wants 3)
+  deterministic: false
+  cache: false                 # 1000 imgs @ 2046x1080 won't fit in RAM cache safely
+
+# Augmentations — standard Ultralytics agricultural-friendly defaults.
+# Mosaic helps small/dense objects; closed in the last epochs for clean convergence.
+aug:
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  fliplr: 0.5
+  flipud: 0.5                  # top-down camera -> vertical flip is label-preserving
+  degrees: 0.0
+  translate: 0.1
+  scale: 0.5
+  mosaic: 1.0
+  close_mosaic: 10
+  mixup: 0.0
+
+# Where runs + the unified experiment log go.
+output:
+  project: runs/stage1_yolo
+  run_name: b0_yolo11s          # seed suffix appended automatically
+  exp_log: logs/experiments.jsonl
