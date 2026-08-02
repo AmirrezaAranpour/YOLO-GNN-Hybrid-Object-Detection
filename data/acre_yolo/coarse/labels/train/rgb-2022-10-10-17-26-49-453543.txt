@@ -1,1 +1,0 @@
-/home/amirreza/Desktop/GNN_NEW/data/acre_yolo/labels_coarse/rgb-2022-10-10-17-26-49-453543.txt

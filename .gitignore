@@ -1,6 +1,17 @@
 # Raw dataset (kept locally, not pushed)
 data/ACRE_raw/
 
+# Regenerable candidate cache (rebuild with: python src/gnn/extract.py)
+data/acre_yolo/cand_cache/
+
+# Regenerable YOLO-format dataset (rebuild with: python src/data/convert.py + src/data/split.py, needs data/ACRE_raw/)
+data/acre_yolo/images/
+data/acre_yolo/labels_coarse/
+data/acre_yolo/labels_fine/
+data/acre_yolo/polygons/
+data/acre_yolo/coarse/
+data/acre_yolo/fine/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -11,3 +22,28 @@ __pycache__/
 .venv/
 venv/
 env/
+
+# Pretrained weights (large, downloadable separately)
+/yolo11s.pt
+/yolo26n.pt
+
+# Training run outputs (checkpoints, per-run logs) - regenerate via training scripts
+runs/
+
+# External reference PDF (not produced by this project)
+/thesis (3).pdf
+
+# LaTeX build artifacts (thesis.pdf itself is kept tracked; only intermediates ignored)
+thesis/thesis-template/*.aux
+thesis/thesis-template/*.log
+thesis/thesis-template/*.out
+thesis/thesis-template/*.toc
+thesis/thesis-template/*.bbl
+thesis/thesis-template/*.blg
+thesis/thesis-template/*.synctex.gz
+thesis/thesis-template/*.fls
+thesis/thesis-template/*.fdb_latexmk
+thesis/thesis-template/*.bcf
+thesis/thesis-template/*.run.xml
+thesis/thesis-template/*.lof
+thesis/thesis-template/*.lot

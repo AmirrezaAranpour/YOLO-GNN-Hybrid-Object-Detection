@@ -13,7 +13,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torchvision.ops import batched_nms
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -29,13 +28,20 @@ def _unletterbox(boxes, gain, padw, padh):
 
 
 # memoize loaded cache + prebuilt graph per file (graph is model-independent, so
-# it is constant across the periodic evals within a run).
+# it is constant across the periodic evals within a run). Keyed by (file, graph
+# config, geom_dim) so a changed graph config never returns a stale graph.
 _PREP = {}
 
 
+def clear_prep_cache():
+    """Free the memoized cache/graphs (call between independent eval configs)."""
+    _PREP.clear()
+
+
 def _prep(f, graph_cfg, geom_dim):
-    if f in _PREP:
-        return _PREP[f]
+    key = (f, tuple(sorted(graph_cfg.items())), geom_dim)
+    if key in _PREP:
+        return _PREP[key]
     d = torch.load(f, weights_only=False)
     nf = d["node_feat"].float()
     boxes = d["boxes_xyxy"].float()
@@ -51,7 +57,7 @@ def _prep(f, graph_cfg, geom_dim):
            "gt_boxes": d["gt_boxes"].float(), "gt_labels": d["gt_labels"],
            "gain": d["gain"], "padw": d["padw"], "padh": d["padh"],
            "ow": d["ow"], "oh": d["oh"]}
-    _PREP[f] = out
+    _PREP[key] = out
     return out
 
 
@@ -84,9 +90,12 @@ def run_predictions(model, cache_dir, graph_cfg, num_classes, device,
             continue
         yolo_scores = nf[:, geom_dim:geom_dim + num_classes]
         out = model.forward_with_prior(nf, p["ei"].to(device), p["ew"].to(device), yolo_scores)
-        probs = F.softmax(out["cls_logits"], dim=1)            # (n, C+1)
-        quality = torch.sigmoid(out["conf_delta"])             # (n,)
-        fg = probs[:, :num_classes] * quality.unsqueeze(1)     # foreground scores
+        # Per-class sigmoid scoring (coherent with the sigmoid-focal training and
+        # with YOLO's own per-class paradigm). softmax-over-(C+1) couples the
+        # classes and was found to slightly de-rank detections.
+        cls_prob = torch.sigmoid(out["cls_logits"][:, :num_classes])   # (n, C)
+        quality = torch.sigmoid(out["conf_delta"])                     # (n,)
+        fg = cls_prob * quality.unsqueeze(1)                           # foreground scores
         score, cls = fg.max(dim=1)
 
         bx = boxes.to(device)

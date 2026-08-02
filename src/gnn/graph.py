@@ -14,7 +14,7 @@ from torch_geometric.utils import coalesce, to_undirected
 
 def _knn_edges(points: torch.Tensor, k: int) -> torch.Tensor:
     """k-NN edge_index (2,E) by Euclidean distance. Plain torch (no pyg-lib),
-    fine for the small graphs here (N<=~150 candidates)."""
+    fine for the small graphs here (N<=~300-600 candidates)."""
     n = points.size(0)
     dist = torch.cdist(points, points)
     dist.fill_diagonal_(float("inf"))
@@ -69,14 +69,22 @@ def build_image_graph(centers, feats, boxes_xyxy=None, k=12,
         sp_edge = _knn_edges(centers, kk)                  # (2,E) directed
 
     # ---- feature-similarity edges ----
+    # Normalize once and reuse for both the threshold edges and the per-edge
+    # similarity weights below.
+    fn = F.normalize(feats, dim=1) if (use_feature_sim and feats is not None) else None
     edges = [sp_edge]
-    if use_feature_sim and feats is not None:
-        fn = F.normalize(feats, dim=1)
+    if fn is not None:
         sim = fn @ fn.t()
         sim.fill_diagonal_(-1)
-        mask = sim >= sim_thresh
-        si, sj = mask.nonzero(as_tuple=True)
-        if si.numel():
+        # Keep only each node's top-kk most-similar neighbors that also clear the
+        # threshold. Bounds feature-sim edges to O(N*kk) like the spatial kNN;
+        # a plain `sim >= thresh` explodes to O(N^2) on large dense pools (900
+        # candidates) and OOMs the GAT attention.
+        topv, topi = sim.topk(kk, dim=1)                   # (n, kk)
+        keep = topv >= sim_thresh
+        if keep.any():
+            si = torch.arange(n, device=device).unsqueeze(1).expand(-1, kk)[keep]
+            sj = topi[keep]
             edges.append(torch.stack([si, sj], 0))
 
     edge_index = to_undirected(torch.cat(edges, dim=1))
@@ -85,8 +93,7 @@ def build_image_graph(centers, feats, boxes_xyxy=None, k=12,
     s, d = edge_index
     cd = (centers[s] - centers[d]).pow(2).sum(1).sqrt()
     spatial_close = torch.exp(-cd / (cd.mean() + 1e-6))    # 1 near, ->0 far
-    if use_feature_sim and feats is not None:
-        fn = F.normalize(feats, dim=1)
+    if fn is not None:
         sim = (fn[s] * fn[d]).sum(1).clamp(min=0)
     else:
         sim = torch.zeros_like(spatial_close)

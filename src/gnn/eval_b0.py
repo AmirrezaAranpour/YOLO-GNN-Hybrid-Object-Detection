@@ -27,6 +27,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--imgsz", type=int, default=1024)
     ap.add_argument("--device", default="cuda:0" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--tag", default="baseline")
     args = ap.parse_args()
 
     from ultralytics import YOLO
@@ -88,6 +89,7 @@ def main():
     row = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "stage": "stage1_yolo", "variant": "B0", "eval_method": "pycoco",
+        "step": args.tag,
         "label_set": "fine", "seed": args.seed,
         "mAP50_95": round(m["mAP50_95"], 4), "mAP50": round(m["mAP50"], 4),
         "mAP_small": round(m["mAP_small"], 4),

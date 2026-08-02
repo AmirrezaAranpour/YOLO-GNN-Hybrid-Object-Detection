@@ -7,6 +7,7 @@ candidates?" — distinct from full B0 (which uses YOLO's complete pre-NMS set).
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import datetime
@@ -20,7 +21,7 @@ from data.config import REPO_ROOT, load_config  # noqa: E402
 from gnn.eval import _unletterbox, coco_metrics  # noqa: E402
 
 
-def main(nms_iou=0.6, score_thresh=0.05):
+def main(nms_iou=0.6, score_thresh=0.05, tag="baseline"):
     dcfg = load_config()
     names = dcfg["fine_names"]; C = len(names)
     small = dcfg["small_object"]["area_px_max"]
@@ -53,6 +54,7 @@ def main(nms_iou=0.6, score_thresh=0.05):
     m = coco_metrics(gt_dict, dts, C, names, small_area=small)
     row = {"timestamp": datetime.now().isoformat(timespec="seconds"),
            "stage": "stage2_ref", "variant": "Cand+NMS", "eval_method": "pycoco",
+           "step": tag,
            "label_set": "fine", "seed": 0,
            "mAP50_95": round(m["mAP50_95"], 4), "mAP50": round(m["mAP50"], 4),
            "mAP_small": round(m["mAP_small"], 4),
@@ -66,4 +68,9 @@ def main(nms_iou=0.6, score_thresh=0.05):
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tag", default="baseline")
+    ap.add_argument("--nms_iou", type=float, default=0.6)
+    ap.add_argument("--score_thresh", type=float, default=0.05)
+    a = ap.parse_args()
+    main(nms_iou=a.nms_iou, score_thresh=a.score_thresh, tag=a.tag)

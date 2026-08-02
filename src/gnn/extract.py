@@ -24,6 +24,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
+import yaml
 from PIL import Image
 from torchvision.ops import roi_align
 
@@ -129,10 +130,12 @@ class CandidateExtractor:
 
 
 def precompute(cfg_path="configs/gnn.yaml"):
-    gcfg = __import__("yaml").safe_load(open(REPO_ROOT / cfg_path))
+    with open(REPO_ROOT / cfg_path) as fh:
+        gcfg = yaml.safe_load(fh)
     dcfg = load_config()
     out_root = Path(dcfg["paths"]["out_root"])
-    splits = json.load(open(out_root / "splits.json"))
+    with open(out_root / "splits.json") as fh:
+        splits = json.load(fh)
 
     ext = CandidateExtractor(gcfg["yolo_ckpt"], imgsz=gcfg["imgsz"],
                              roi_feat=gcfg["candidates"]["roi_feat"])

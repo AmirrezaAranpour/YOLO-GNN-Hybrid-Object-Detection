@@ -1,5 +1,13 @@
 # Stage 2 — GNN Refinement: Results & Analysis
 
+> **UPDATE — see [`STAGE2_IMPROVEMENTS.md`](STAGE2_IMPROVEMENTS.md).** Acting on the
+> root-cause diagnosis below, raising the candidate-pool ceiling (topk 300→900) plus
+> a sigmoid-calibration fix lifted the best GNN **27.4 → 30.3 mAP@[.5:.95]** and the
+> pool control to **31.0** (B0 = 31.15). The analysis below is the *original*
+> (thin-pool) study and remains the "before" reference.
+
+
+
 Two-stage detector: a **frozen** YOLO11s (Stage 1) whose pre-NMS candidates are
 refined by a small GNN head (Stage 2). Full experiment matrix, 3 seeds each,
 evaluated with **pycocotools** (same evaluator for every row, incl. our 1920px²

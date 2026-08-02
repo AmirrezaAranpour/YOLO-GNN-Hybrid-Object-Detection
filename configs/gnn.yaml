@@ -13,12 +13,11 @@ data: data/acre_yolo/acre_fine.yaml
 # rescue them — that's the whole point.
 # ---------------------------------------------------------------------------
 candidates:
-  topk: 300                    # top-N pre-NMS candidates per image by confidence.
-                               # Brief said ~150, but this data is dense (max 295
-                               # obj/img); at topk=150 GT-recall@IoU0.5 on dense
-                               # images is only ~0.14, vs ~0.27 at 300. 300 covers
-                               # typical images (mean 56) well + helps dense ones.
-  conf_thresh: 0.05            # low, on purpose, to keep borderline detections
+  topk: 900                    # top-N pre-NMS candidates per image by confidence.
+                               # Pool GT-recall@IoU0.5: 0.55(topk300)->0.75(topk600);
+                               # cap still binding (max=600 on dense images) so raised
+                               # to 900. (Brief said ~150; data is dense, max 295 obj/img.)
+  conf_thresh: 0.03            # low, on purpose, to keep borderline detections
   roi_feat: true               # ROI-pool an appearance vector from the neck map
 
 # ---------------------------------------------------------------------------
@@ -57,13 +56,16 @@ train:
                                # saved, so 40 is plenty and keeps the 24-run matrix fast
   lr: 0.001
   weight_decay: 0.0005
-  batch_images: 8              # images per batch (each is a graph)
-  pos_iou: 0.5                 # IoU>=this -> matched positive, else background
-  cls_loss: focal             # focal | weighted_ce (imbalance: lambsquarter 82%)
+  batch_images: 2              # images per batch (each is a graph). topk=900 pool
+                               # (up to 900 nodes/graph + dense feature-sim edges)
+                               # OOMs the GAT attention above batch 2 on 8GB.
+  pos_iou: 0.5                 # IoU>=this -> matched positive, else background (0.3 tested @ S2 & S3b: neutral both times)
+  cls_loss: sigmoid_focal     # sigmoid_focal (per-class, coherent w/ sigmoid eval) | focal (softmax CE)
   focal_gamma: 2.0
   use_class_weights: true
   box_loss_weight: 1.0
   conf_loss_weight: 1.0
+  grad_clip: 5.0               # max grad-norm for stability
   device: 0
   seeds: [0, 1, 2]
 

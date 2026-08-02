@@ -41,6 +41,23 @@ def focal_ce(logits, y, weight, gamma=2.0):
     return ((1 - pt) ** gamma * ce).mean()
 
 
+def sigmoid_focal(logits, y, weight, gamma=2.0):
+    """Per-class sigmoid focal loss (RetinaNet-style), coherent with the
+    per-class-sigmoid decode used at eval. logits: (N, C+1); y: (N,) class index
+    (C = background). `weight`: optional per-class weight vector (C+1,). Reduction
+    sums over classes and averages over nodes, so its magnitude is comparable to
+    the previous softmax focal_ce (keeps cls/box/conf loss balance)."""
+    k = logits.size(1)
+    targets = F.one_hot(y, num_classes=k).float()                 # (N, C+1)
+    p = torch.sigmoid(logits)
+    ce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+    pt = p * targets + (1 - p) * (1 - targets)
+    loss = (1 - pt) ** gamma * ce
+    if weight is not None:
+        loss = loss * weight.unsqueeze(0)                         # per-class weight
+    return loss.sum(dim=1).mean()
+
+
 def none_if_str(v):
     return None if (v is None or str(v).lower() == "none") else v
 
@@ -54,9 +71,12 @@ def main():
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--device", default=None)
     ap.add_argument("--name", default=None)
+    ap.add_argument("--tag", default="baseline",
+                    help="experiment step tag, logged as 'step' for progression tracking")
     args = ap.parse_args()
 
-    gcfg = yaml.safe_load(open(REPO_ROOT / args.config))
+    with open(REPO_ROOT / args.config) as fh:
+        gcfg = yaml.safe_load(fh)
     dcfg = load_config()
     mcfg, tcfg, grcfg = dict(gcfg["model"]), gcfg["train"], gcfg["graph"]
     if args.block_a is not None:
@@ -101,7 +121,9 @@ def main():
             batch = batch.to(device)
             yolo_scores = batch.x[:, 4:4 + C]                  # geom(4) then C scores
             out = model.forward_with_prior(batch.x, batch.edge_index, batch.edge_attr, yolo_scores)
-            loss = focal_ce(out["cls_logits"], batch.y, cls_w, tcfg["focal_gamma"])
+            cls_loss_fn = sigmoid_focal if tcfg.get("cls_loss", "focal") == "sigmoid_focal" \
+                else focal_ce
+            loss = cls_loss_fn(out["cls_logits"], batch.y, cls_w, tcfg["focal_gamma"])
             # quality (IoU-aware) loss
             loss = loss + tcfg["conf_loss_weight"] * F.binary_cross_entropy_with_logits(
                 out["conf_delta"], batch.quality)
@@ -112,7 +134,9 @@ def main():
                 tgt_box = decode_box_residual(batch.cand_boxes[pos], batch.reg_target[pos])
                 loss = loss + tcfg["box_loss_weight"] * \
                     complete_box_iou_loss(pred_box, tgt_box, reduction="mean")
-            opt.zero_grad(); loss.backward(); opt.step()
+            opt.zero_grad(); loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), tcfg.get("grad_clip", 5.0))
+            opt.step()
             tot += loss.item()
         sched.step()
 
@@ -142,6 +166,7 @@ def main():
     row = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "stage": "stage2_gnn", "variant": variant, "eval_method": "pycoco",
+        "step": args.tag,
         "label_set": "fine", "seed": args.seed, "epochs": epochs,
         "block_a": mcfg["block_a"], "block_b": mcfg["block_b"],
         "k": grcfg["k"], "topk": gcfg["candidates"]["topk"],
